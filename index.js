@@ -30,22 +30,25 @@ function fetchEmployees() {
 }
 
 function fetchRoles() {
-    fetchEmployees().then(employees => {
-        const query = "SELECT id, title FROM role";
-        db.query(query, (err, results) => {
-          if (err) {
-            console.error("Error fetching roles: ", err);
-            return;
-          }
-      
-          const roles = results.map(role => ({
-            name: role.title,
-            value: role.id
-          }));
-      
-          addEmployee(roles, employees);
+    return new Promise((resolve, reject) => {
+        fetchEmployees().then(employees => {
+            const query = "SELECT id, title FROM role";
+            db.query(query, (err, results) => {
+                if (err) {
+                    console.error("Error fetching roles: ", err);
+                    reject(err);
+                    return;
+                }
+
+                const roles = results.map(role => ({
+                    name: role.title,
+                    value: role.id
+                }));
+
+                resolve({ roles, employees });
+            });
         });
-    })
+    });
 }
 
 function fetchDepartments() {
@@ -235,6 +238,35 @@ function addEmployee(roles, employees) {
     });
 };
 
-mainMenu();
+function updateRole() {
+    fetchRoles().then(({ roles, employees }) => {
+        inquirer
+            .prompt([
+                {
+                    name: "employeeToUpdate",
+                    type: "list",
+                    message: "Which employee would you like to update?",
+                    choices: employees
+                },
+                {
+                    name: "updatedRole",
+                    type: "list",
+                    message: "What is their new role?",
+                    choices: roles
+                }
+            ])
+            .then(answer => {
+                const query = "UPDATE employee SET role_id = ? WHERE id = ?";
+                db.query(query, [answer.updatedRole, answer.employeeToUpdate], err => {
+                    if (err) {
+                        console.error('Error updating employee role: ', err);
+                    } else {
+                        console.log("Employee role updated successfully!");
+                    }
+                    mainMenu();
+                });
+            });
+    });
+}
 
-//update an employee role
+mainMenu();
