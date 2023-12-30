@@ -11,6 +11,8 @@ const db = mysql.createConnection(
     console.log("connected to the employee_db database.")
 );
 
+const employees = [{ name: "No Manager", value: null }];
+
 function fetchEmployees() {
     return new Promise((resolve, reject) => {
         const query = "SELECT id, first_name, last_name FROM employee";
@@ -19,17 +21,36 @@ function fetchEmployees() {
                 console.error("Error fetching employees: ", err);
                 reject(err);
             } else {
-                const employees = results.map(role => ({
+                const employeeList = results.map(role => ({
                     name: `${role.first_name} ${role.last_name}`,
                     value: role.id
                 }));
-                resolve(employees);
+                resolve([...employees, ...employeeList]);
             }
         });
     });
 }
 
-function fetchRoles() {
+function fetchRolesAdd() {
+    fetchEmployees().then(employees => {
+        const query = "SELECT id, title FROM role";
+        db.query(query, (err, results) => {
+          if (err) {
+            console.error("Error fetching roles: ", err);
+            return;
+          }
+      
+          const roles = results.map(role => ({
+            name: role.title,
+            value: role.id
+          }));
+      
+          addEmployee(roles, employees);
+        });
+    })
+}
+
+function fetchRolesUpdate() {
     return new Promise((resolve, reject) => {
         fetchEmployees().then(employees => {
             const query = "SELECT id, title FROM role";
@@ -109,7 +130,7 @@ const mainMenu = async () => {
             fetchDepartments();
         break;
             case "Add an employee":
-            fetchRoles();
+            fetchRolesAdd();
         break;
             case "Update an employee role":
             updateRole();
@@ -135,7 +156,15 @@ function viewDepartments() {
 };
 
 function viewRoles() {
-    const query = "SELECT * FROM role";
+    const query = 
+    `SELECT
+        role.id,
+        role.title,
+        role.salary,
+        department.name AS department_name
+    FROM 
+        role
+    LEFT JOIN department ON role.department_id = department.id;`;
     db.query(query, (err, results) => {
         if (err) throw err;
         console.table (results);
@@ -144,7 +173,20 @@ function viewRoles() {
 };
 
 function viewEmployees() {
-    const query = "SELECT * FROM employee";
+    const query = 
+    `SELECT 
+        employee.id,
+        employee.first_name,
+        employee.last_name,
+        role.title AS role_name,
+        CONCAT(manager.first_name, ' ', manager.last_name) AS manager_name,
+        role.salary,
+        department.name AS department_name
+    FROM 
+        employee
+    LEFT JOIN role ON employee.role_id = role.id
+    LEFT JOIN employee manager ON employee.manager_id = manager.id
+    LEFT JOIN department ON role.department_id = department.id;`;
     db.query(query, (err, results) => {
         if (err) throw err;
         console.table (results);
@@ -239,7 +281,7 @@ function addEmployee(roles, employees) {
 };
 
 function updateRole() {
-    fetchRoles().then(({ roles, employees }) => {
+    fetchRolesUpdate().then(({ roles, employees }) => {
         inquirer
             .prompt([
                 {
