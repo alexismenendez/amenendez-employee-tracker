@@ -156,7 +156,15 @@ function viewDepartments() {
 };
 
 function viewRoles() {
-    const query = "SELECT * FROM role";
+    const query = 
+    `SELECT
+        role.id,
+        role.title,
+        role.salary,
+        department.name AS department_name
+    FROM 
+        role
+    LEFT JOIN department ON role.department_id = department.id;`;
     db.query(query, (err, results) => {
         if (err) throw err;
         console.table (results);
